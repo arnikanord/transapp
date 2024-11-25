@@ -6,9 +6,7 @@ import { StyleSheet, Text, View, TouchableOpacity, Platform } from 'react-native
 import { Picker } from '@react-native-picker/picker';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
-
-// API key should be loaded from environment variables in production
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+import { OPENAI_API_KEY } from '@env';
 
 type LanguageCode = 'en' | 'es' | 'fr' | 'de' | 'it' | 'pt' | 'ru' | 'ko' | 'cs';
 
