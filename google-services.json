@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "1060410124909",
+    "project_id": "transapparnika",
+    "storage_bucket": "transapparnika.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1060410124909:android:575d7b1c923779ce31ad64",
+        "android_client_info": {
+          "package_name": "com.arnika.transapparnika"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1060410124909-e18qenbj9vrq8p1ab3k6mcc9ae64num9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA70PlvTzdiUkUNblGRd8JeJgofqIVYP5E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1060410124909-e18qenbj9vrq8p1ab3k6mcc9ae64num9.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
