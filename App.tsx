@@ -2,13 +2,13 @@
 import 'react-native-get-random-values';
 
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Platform } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Platform, ScrollView, Linking } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import { OPENAI_API_KEY } from '@env';
 
-type LanguageCode = 'en' | 'es' | 'fr' | 'de' | 'it' | 'pt' | 'ru' | 'ko' | 'cs';
+type LanguageCode = 'en' | 'es' | 'fr' | 'de' | 'it' | 'pt' | 'ru' | 'uk' | 'ar' | 'zh' | 'cs' | 'pl';
 
 const languages: Array<{ code: LanguageCode; name: string }> = [
   { code: 'en', name: 'English' },
@@ -17,8 +17,11 @@ const languages: Array<{ code: LanguageCode; name: string }> = [
   { code: 'de', name: 'German' },
   { code: 'it', name: 'Italian' },
   { code: 'pt', name: 'Portuguese' },
+  { code: 'pl', name: 'Polish' },
   { code: 'ru', name: 'Russian' },
-  { code: 'ko', name: 'Korean' },
+  { code: 'uk', name: 'Ukrainian' },
+  { code: 'ar', name: 'Arabic' },
+  { code: 'zh', name: 'Chinese (Simplified)' },
   { code: 'cs', name: 'Czech' },
 ];
 
@@ -43,6 +46,8 @@ export default function App() {
   const [audioLevel, setAudioLevel] = useState(-160);
   const [selectedVoice, setSelectedVoice] = useState('alloy');
   const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [lastSourceLanguage, setLastSourceLanguage] = useState<LanguageCode>('en');
+  const [lastTargetLanguage, setLastTargetLanguage] = useState<LanguageCode>('es');
 
   useEffect(() => {
     const getPermission = async () => {
@@ -68,6 +73,25 @@ export default function App() {
 
     getPermission();
   }, []);
+
+  const switchLanguagesAndRecord = async () => {
+    // Switch languages
+    const tempSource = sourceLanguage;
+    const tempTarget = targetLanguage;
+    setSourceLanguage(tempTarget);
+    setTargetLanguage(tempSource);
+    
+    // Start recording
+    await startRecording();
+  };
+
+  // Save the language pair when user changes it
+  const handleLanguageChange = (source: LanguageCode, target: LanguageCode) => {
+    setLastSourceLanguage(source);
+    setLastTargetLanguage(target);
+    setSourceLanguage(source);
+    setTargetLanguage(target);
+  };
 
   const startRecording = async () => {
     try {
@@ -151,6 +175,44 @@ export default function App() {
 
       const data = await response.json();
       setSourceText(data.text);
+
+      // Check if the detected text is in the target language
+      const detectionResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4',
+          messages: [
+            {
+              role: 'system',
+              content: `You are a language detector. Analyze the following text and determine if it's in ${languages.find(l => l.code === targetLanguage)?.name} language. Respond with only "yes" or "no".`
+            },
+            {
+              role: 'user',
+              content: data.text
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 10
+        })
+      });
+
+      if (!detectionResponse.ok) {
+        throw new Error('Language detection failed');
+      }
+
+      const detectionData = await detectionResponse.json();
+      const isTargetLanguage = detectionData.choices[0].message.content.toLowerCase().includes('yes');
+
+      if (isTargetLanguage) {
+        // Swap languages if the detected text is in the target language
+        setSourceLanguage(targetLanguage);
+        setTargetLanguage(sourceLanguage);
+      }
+
       await translateText(data.text);
 
       setRecording(null);
@@ -205,6 +267,10 @@ export default function App() {
       const translatedText = data.choices[0].message.content.trim();
       setTranslatedText(translatedText);
       setStatus('Translation complete');
+      
+      // Automatically speak the translation
+      await speakTranslation(translatedText);
+
     } catch (err) {
       console.error('Translation error:', err);
       setError('Failed to translate text');
@@ -212,9 +278,11 @@ export default function App() {
     }
   };
 
-  const speakTranslation = async () => {
+  const speakTranslation = async (textToSpeak?: string) => {
     try {
-      if (!translatedText) return;
+      const textToRead = textToSpeak || translatedText;
+      if (!textToRead) return;
+      
       setStatus('Generating speech...');
 
       // Stop any existing playback
@@ -233,7 +301,7 @@ export default function App() {
         body: JSON.stringify({
           model: 'tts-1',
           voice: selectedVoice,
-          input: translatedText,
+          input: textToRead,
         }),
       });
 
@@ -300,40 +368,41 @@ export default function App() {
     return Math.max(0, Math.min(100, percentage));
   };
 
+  const renderLanguagePicker = (
+    value: LanguageCode,
+    onValueChange: (value: LanguageCode) => void,
+    label: string
+  ) => (
+    <View style={styles.pickerContainer}>
+      <Text style={styles.label}>{label}</Text>
+      <Picker<LanguageCode>
+        selectedValue={value}
+        style={styles.picker}
+        onValueChange={onValueChange}>
+        {languages.map(lang => (
+          <Picker.Item
+            key={lang.code}
+            label={lang.name}
+            value={lang.code}
+          />
+        ))}
+      </Picker>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.languageSelectors}>
-        <View style={styles.pickerContainer}>
-          <Text style={styles.label}>From:</Text>
-          <Picker
-            selectedValue={sourceLanguage}
-            style={styles.picker}
-            onValueChange={value => setSourceLanguage(value as LanguageCode)}>
-            {languages.map(lang => (
-              <Picker.Item
-                key={lang.code}
-                label={lang.name}
-                value={lang.code}
-              />
-            ))}
-          </Picker>
-        </View>
-
-        <View style={styles.pickerContainer}>
-          <Text style={styles.label}>To:</Text>
-          <Picker
-            selectedValue={targetLanguage}
-            style={styles.picker}
-            onValueChange={value => setTargetLanguage(value as LanguageCode)}>
-            {languages.map(lang => (
-              <Picker.Item
-                key={lang.code}
-                label={lang.name}
-                value={lang.code}
-              />
-            ))}
-          </Picker>
-        </View>
+        {renderLanguagePicker(
+          sourceLanguage,
+          (value) => handleLanguageChange(value, targetLanguage),
+          'From:'
+        )}
+        {renderLanguagePicker(
+          targetLanguage,
+          (value) => handleLanguageChange(sourceLanguage, value),
+          'To:'
+        )}
       </View>
 
       <View style={styles.voiceSelector}>
@@ -341,7 +410,7 @@ export default function App() {
         <Picker
           selectedValue={selectedVoice}
           style={styles.picker}
-          onValueChange={value => setSelectedVoice(value)}>
+          onValueChange={setSelectedVoice}>
           {openAIVoices.map(voice => (
             <Picker.Item
               key={voice.id}
@@ -354,12 +423,16 @@ export default function App() {
 
       <View style={styles.textContainer}>
         <Text style={styles.textLabel}>Original Text:</Text>
-        <Text style={styles.text}>{sourceText}</Text>
+        <ScrollView style={styles.scrollContainer}>
+          <Text style={styles.text}>{sourceText}</Text>
+        </ScrollView>
       </View>
 
       <View style={styles.textContainer}>
         <Text style={styles.textLabel}>Translated Text:</Text>
-        <Text style={styles.text}>{translatedText}</Text>
+        <ScrollView style={styles.scrollContainer}>
+          <Text style={styles.text}>{translatedText}</Text>
+        </ScrollView>
       </View>
 
       <View style={styles.audioLevelContainer}>
@@ -368,7 +441,7 @@ export default function App() {
 
       <View style={styles.controls}>
         <TouchableOpacity
-          style={[styles.button, isRecording && styles.buttonActive]}
+          style={[styles.button, styles.buttonBlue, isRecording && styles.buttonActive]}
           onPress={isRecording ? stopRecording : startRecording}>
           <Text style={styles.buttonText}>
             {isRecording ? 'Stop' : 'Start'} Recording
@@ -376,8 +449,19 @@ export default function App() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.button, { marginLeft: 10 }]}
-          onPress={speakTranslation}
+          style={[styles.button, styles.buttonOrange, { marginLeft: 10 }]}
+          onPress={switchLanguagesAndRecord}
+          disabled={isRecording}>
+          <Text style={styles.buttonText}>
+            Switch Languages/Listen
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.controls}>
+        <TouchableOpacity
+          style={[styles.button, styles.buttonGreen]}
+          onPress={() => speakTranslation()}
           disabled={!translatedText}>
           <Text style={styles.buttonText}>Speak Translation</Text>
         </TouchableOpacity>
@@ -389,6 +473,12 @@ export default function App() {
       <Text style={styles.demoNote}>
         Using OpenAI for Speech Recognition & Text-to-Speech
       </Text>
+
+      <TouchableOpacity 
+        style={styles.developerLink}
+        onPress={() => Linking.openURL('http://www.arnika-web.com')}>
+        <Text style={styles.linkText}>www.arnika-web.com</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -425,7 +515,7 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 8,
     marginBottom: 20,
-    minHeight: 80,
+    height: 120,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -437,6 +527,9 @@ const styles = StyleSheet.create({
         elevation: 2,
       },
     }),
+  },
+  scrollContainer: {
+    flex: 1,
   },
   textLabel: {
     fontSize: 16,
@@ -454,7 +547,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   button: {
-    backgroundColor: '#007AFF',
+    flex: 1,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
@@ -470,6 +563,15 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  buttonBlue: {
+    backgroundColor: '#007AFF',
+  },
+  buttonOrange: {
+    backgroundColor: '#FF9500',
+  },
+  buttonGreen: {
+    backgroundColor: '#34C759',
+  },
   buttonActive: {
     backgroundColor: '#FF3B30',
   },
@@ -477,6 +579,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
   },
   error: {
     color: '#FF3B30',
@@ -508,5 +611,15 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: '#007AFF',
     borderRadius: 2,
+  },
+  developerLink: {
+    marginTop: 'auto',
+    paddingVertical: 10,
+  },
+  linkText: {
+    color: '#007AFF',
+    textAlign: 'center',
+    textDecorationLine: 'underline',
+    fontSize: 12,
   },
 });
