@@ -13,3 +13,22 @@ web-build/
 
 # macOS
 .DS_Store
+
+# Firebase config
+google-services.json
+
+# Temporary files
+*.log
+*.tmp
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build files
+build/
+*.apk
+*.aab
+*.ipa

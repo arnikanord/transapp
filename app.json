@@ -1,11 +1,13 @@
 {
   "expo": {
-    "name": "TranslatorApp",
-    "slug": "TranslatorApp",
+    "name": "TransApp",
+    "slug": "transapp",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -14,27 +16,35 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "infoPlist": {
-        "NSMicrophoneUsageDescription": "This app needs access to the microphone to record audio for translation."
-      }
+      "bundleIdentifier": "com.arnika.transapparnika"
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "permissions": [
-        "RECORD_AUDIO",
-        "MODIFY_AUDIO_SETTINGS"
-      ]
+      "package": "com.arnika.transapparnika",
+      "googleServicesFile": "./google-services.json"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
       [
-        "expo-av",
+        "expo-build-properties",
         {
-          "microphonePermission": "Allow TranslatorApp to access your microphone for voice translation."
+          "android": {
+            "compileSdkVersion": 33,
+            "targetSdkVersion": 33,
+            "buildToolsVersion": "33.0.0"
+          },
+          "ios": {
+            "deploymentTarget": "13.0"
+          }
         }
       ]
-    ],
-    "newArchEnabled": true
+    ]
   }
 }
